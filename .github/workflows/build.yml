@@ -1,0 +1,78 @@
+name: Build Pipeline
+
+## start the pipeline manually by entering version to release, this version will be the version of the artifact that is uploaded
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: "Version to release"
+                required: true
+                default: ""
+
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+            - name: Get package info
+              id: package
+              uses: codex-team/action-nodejs-package-info@v1
+            ## check if artifact with input version exists
+            - name: Check if artifact exists
+              id: check_artifact
+              uses: actions/github-script@v6
+              with:
+                  script: |
+                      const artifact = await github.rest.actions.listArtifactsForRepo({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                      })
+                      const artifactExists = artifact.data.artifacts.some((artifact) => artifact.name === '${{ steps.package.outputs.name }}_v${{ github.event.inputs.version }}.zip')
+                      return artifactExists
+            ## if artifact does not exists install setup node, install dependencies, build project and upload artifact
+            - name: Setup Node.js
+              if: steps.check_artifact.outputs.result == 'false'
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 18
+            - name: Install dependencies
+              if: steps.check_artifact.outputs.result == 'false'
+              run: npm ci
+            - name: Build
+              if: steps.check_artifact.outputs.result == 'false'
+              run: npm run build
+            - name: Upload artifact
+              if: steps.check_artifact.outputs.result == 'false'
+              uses: actions/upload-artifact@v2
+              with:
+                  name: ${{ steps.package.outputs.name }}_v${{ github.event.inputs.version }}.zip
+                  path: ./dist
+            ## if artifact does not exist, and is uploaded, create a tag with the input version
+            - name: Tag commit
+              if: steps.check_artifact.outputs.result == 'false'
+              uses: actions/github-script@v6
+              with:
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  script: |
+                      const tag = `v${{ github.event.inputs.version }}`
+                      const tagExists = await github.rest.git.getRef({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        ref: `tags/${tag}`,
+                      })
+                      if (tagExists.status === 200) {
+                        console.log(`Tag ${tag} already exists`)
+                        return
+                      }
+                      await github.rest.git.createRef({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        ref: `refs/tags/${tag}`,
+                        sha: context.sha,
+                      })
+            
+
+            
