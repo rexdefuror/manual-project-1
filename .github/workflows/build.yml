@@ -44,42 +44,44 @@ jobs:
             - name: Build
               if: steps.check_artifact.outputs.result == 'false'
               run: npm run build
-            - name: Upload artifact
-              if: steps.check_artifact.outputs.result == 'false'
-              uses: actions/upload-artifact@v2
-              with:
-                  name: ${{ steps.package.outputs.name }}_v${{ github.event.inputs.version }}.zip
-                  path: ./dist
-            ## if artifact does not exist, and is uploaded, create a tag with the input version
             - name: Tag commit
               if: steps.check_artifact.outputs.result == 'false'
+              id: tagging
               uses: actions/github-script@v6
               with:
                   github-token: ${{ secrets.GITHUB_TOKEN }}
                   script: |
-                    const tag = `v${{ github.event.inputs.version }}`
+                    const version = '${{ steps.get_version.outputs.version }}'
+                    const tag = `v${version}`
                     const commit = context.sha
                     const owner = context.repo.owner
                     const repo = context.repo.repo
-                    const ref = `refs/tags/${tag}`
-                    const message = `Release ${tag}`
-                    // Check if tag already exists
                     const tagExists = await github.rest.git.getRef({
                       owner,
                       repo,
-                      ref,
+                      ref: `tags/${tag}`,
                     })
-                    if (tagExists.status === 200) {
+                    .then(() => true)
+                    .catch(() => false)
+                    if (tagExists) {
                       console.log(`Tag ${tag} already exists`)
-                      return
+                      return false;
                     }
-                    // Create tag
                     await github.rest.git.createRef({
                       owner,
                       repo,
-                      ref,
+                      ref: `refs/tags/${tag}`,
                       sha: commit,
                     })
+                    console.log(`Tag ${tag} created`)
+                    return true;
+            - name: Upload artifact
+              if: steps.check_artifact.outputs.result == 'false' && steps.tagging.outputs.result == 'true'
+              uses: actions/upload-artifact@v2
+              with:
+                  name: ${{ steps.package.outputs.name }}_v${{ github.event.inputs.version }}.zip
+                  path: ./dist
+            
             
 
             
