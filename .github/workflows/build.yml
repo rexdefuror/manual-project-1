@@ -51,7 +51,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version = '${{ steps.get_version.outputs.version }}'
+            const version = '${{ github.event.inputs.version }}'
             const tag = `v${version}`
             const commit = context.sha
             const owner = context.repo.owner
