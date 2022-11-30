@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Package.json info
-        uses: rexdefuror/read-package-json@v1.0.4
+        uses: rexdefuror/read-package-json@v1.0.5
 
       - run: echo "name - ${{ env.PACKAGE_NAME }}"
       - run: echo "version - ${{ env.PACKAGE_VERSION }}"
