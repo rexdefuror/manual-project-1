@@ -22,7 +22,6 @@ jobs:
         uses: codex-team/action-nodejs-package-info@v1
       ## check if artifact with input version exists
       - name: Check if artifact exists
-        id: check_artifact
         uses: actions/github-script@v6
         with:
           script: |
@@ -31,22 +30,21 @@ jobs:
               repo: context.repo.repo,
             })
             const artifactExists = artifact.data.artifacts.some((artifact) => artifact.name === '${{ steps.package.outputs.name }}_v${{ github.event.inputs.version }}.zip')
-            return artifactExists
+            core.exportVariable('check_artifact', artifactExists)
       ## if artifact does not exists install setup node, install dependencies, build project and upload artifact
       - name: Setup Node.js
-        if: steps.check_artifact.outputs.result == 'false'
+        if: ${{ env.check_artifact == 'false' }}
         uses: actions/setup-node@v3
         with:
           node-version: 18
       - name: Install dependencies
-        if: steps.check_artifact.outputs.result == 'false'
+        if: ${{ env.check_artifact == 'false' }}
         run: npm ci
       - name: Build
-        if: steps.check_artifact.outputs.result == 'false'
+        if: ${{ env.check_artifact == 'false' }}
         run: npm run build
       - name: Tag commit
-        if: steps.check_artifact.outputs.result == 'false'
-        id: tagging
+        if: ${{ env.check_artifact == 'false' }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -65,7 +63,8 @@ jobs:
             .catch(() => false)
             if (tagExists) {
               console.log(`Tag ${tag} already exists`)
-              return false;
+              core.exportVariable('tagging', false)
+              return;
             }
             await github.rest.git.createRef({
               owner,
@@ -74,9 +73,9 @@ jobs:
               sha: commit,
             })
             console.log(`Tag ${tag} created`)
-            return true;
+            core.exportVariable('tagging', true)
       - name: Upload artifact
-        if: steps.check_artifact.outputs.result == 'false' && steps.tagging.outputs.result == 'true'
+        if: ${{ env.check_artifact == 'false' && env.tagging == 'true' }}
         uses: actions/upload-artifact@v2
         with:
           name: ${{ steps.package.outputs.name }}_v${{ github.event.inputs.version }}.zip
