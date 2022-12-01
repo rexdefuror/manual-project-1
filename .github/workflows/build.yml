@@ -21,28 +21,25 @@ jobs:
         uses: rexdefuror/read-package-json@v1.0.5
       ## check if artifact with input version exists
       - name: Check if artifact exists
-        uses: actions/github-script@v6
+        uses: rexdefuror/check_artifact_exists@v1.0.1
         with:
-          script: |
-            const artifact = await github.rest.actions.listArtifactsForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            })
-            const artifactExists = artifact.data.artifacts.some((artifact) => artifact.name === '${{ env.PACKAGE_NAME }}_v${{ github.event.inputs.version }}.zip')
-            core.exportVariable('check_artifact', artifactExists)
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: "rexdefuror"
+          repo: "manual-project-1"
+          name: ${{ env.PACKAGE_NAME }}_v${{ github.event.inputs.version }}
       - name: Setup Node.js
-        if: ${{ env.check_artifact == 'false' }}
+        if: ${{ env.ARTIFACT_EXISTS == 'false' }}
         uses: actions/setup-node@v3
         with:
           node-version: 18
       - name: Install dependencies
-        if: ${{ env.check_artifact == 'false' }}
+        if: ${{ env.ARTIFACT_EXISTS == 'false' }}
         run: npm ci
       - name: Build
-        if: ${{ env.check_artifact == 'false' }}
+        if: ${{ env.ARTIFACT_EXISTS == 'false' }}
         run: npm run build
       - name: Tag commit
-        if: ${{ env.check_artifact == 'false' }}
+        if: ${{ env.ARTIFACT_EXISTS == 'false' }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -73,7 +70,7 @@ jobs:
             console.log(`Tag ${tag} created`)
             core.exportVariable('tagging', true)
       - name: Upload artifact
-        if: ${{ env.check_artifact == 'false' && env.tagging == 'true' }}
+        if: ${{ env.ARTIFACT_EXISTS == 'false' && env.tagging == 'true' }}
         uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PACKAGE_NAME }}_v${{ github.event.inputs.version }}.zip
