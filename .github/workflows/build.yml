@@ -1,5 +1,5 @@
 name: Build Pipeline
-
+run-name: Build version ${{ github.event.inputs.version }}
 ## start the pipeline manually by entering version to release, this version will be the version of the artifact that is uploaded
 
 on:
@@ -50,5 +50,5 @@ jobs:
         if: ${{ env.ARTIFACT_EXISTS == 'false' && env.TAGGED == 'true' }}
         uses: actions/upload-artifact@v2
         with:
-          name: manual-project-1_v${{ github.event.inputs.version }}
+          name: ${{ env.PACKAGE_NAME }}_v${{ github.event.inputs.version }}
           path: ./dist
